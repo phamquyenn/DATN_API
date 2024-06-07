@@ -28,7 +28,7 @@ const upload = multer({
 });
 // GETALL
 router.get('/getall', function(req, res, next) {
-  var sql = "SELECT * FROM news LIMIT 3";
+  var sql = "SELECT * FROM news ";
   connection.query(sql, function (err, results){
       if(err) throw err;
       res.jsonp(results);
@@ -135,42 +135,149 @@ router.delete('/deletenews/:id', (req, res) => {
   );
 });
 
-// router.delete('/deletenews/:id', (req, res) => {
-//   const productId = req.params.id;
+// Details News
 
-//   // Lấy tên file ảnh cũ trước khi xóa tin tức
-//   const sqlSelectOldImage = "SELECT image_url FROM news WHERE id = ?";
-//   connection.query(sqlSelectOldImage, [productId], (err, results) => {
-//       if (err) {
-//           console.error("Lỗi khi lấy tên file ảnh cũ:", err);
-//           return res.status(500).json({ error: "Lỗi máy chủ" });
-//       }
-//       // Thực hiện xóa tin tức
-//       const sqlDeleteNews = `CALL DeleteNews(?)`;
-//       connection.query(sqlDeleteNews, [productId], (errDelete, resultsDelete) => {
-//           if (errDelete) {
-//               console.error("Lỗi khi xóa tin tức:", errDelete);
-//               return res.status(500).json({ error: "Lỗi máy chủ" });
-//           }
-//           // Nếu có ảnh cũ, xóa ảnh từ thư mục
-//           const oldImage = results && results[0] ? results[0].image_url : null;
-//           if (oldImage) {
-//               const imagePath = path.join(__dirname, '../uploads/products', oldImage);
-//               fs.unlink(imagePath, (errUnlink) => {
-//                   if (errUnlink) {
-//                       console.error("Lỗi khi xóa ảnh cũ:", errUnlink);
-//                       return res.status(500).json({ error: "Lỗi máy chủ" });
-//                   }
+// getall 
+router.get('/getall-details', function(req, res, next) {
+  var sql = "SELECT * FROM news_details ";
+  connection.query(sql, function (err, results){
+      if(err) throw err;
+      res.jsonp(results);
+  });
+}); 
+// getonce
+router.get('/getonce-details/:id', function(req, res, next) {
+  const Id = req.params.id;
+  const sql = "SELECT * FROM news_details WHERE id = ?";
+  
+  connection.query(sql, [Id], function (err, results) {
+      if (err) {
+          console.error("Lỗi thực hiện truy vấn dữ liệu:", err);
+          return res.status(500).json({ error: "Lỗi máy chủ" });
+      }
+      res.jsonp(results);
+  });
+});
+// add
+router.post('/add-details', (req, res) => {
+  const {  author, title, content } = req.body;
 
-//                   res.json({ message: "Tin tức và ảnh đã được xóa thành công!" });
-//               });
-//           } else {
-//               res.json({ message: "Tin tức đã được xóa thành công!" });
-//           }
-//       });
-//   });
-// });
+  if ( !author || !title || !content) {
+    return res.status(400).json({ error: 'Vui lòng cung cấp  tác giả, tiêu đề và nội dung' });
+  }
 
+  const query = 'CALL CreateNewsDetail(?, ?, ?)';
+  connection.query(query, [ author, title, content], (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Tạo thất bại' });
+    }
+    res.status(200).json({ message: 'Đã tạo thành công' });
+  });
+});
+// update
+router.put('/update-details/:id', (req, res) => {
+  const { id } = req.params;
+  const { author, title, content } = req.body;
 
+  const query = 'CALL UpdateNewsDetail(?, ?, ?, ?)';
+  connection.query(query, [id, author, title, content], (err, results) => {
+    if (err) {
+      console.error('Procedure bị lỗi:', err);
+      return res.status(500).json({ error: 'Cập nhật lỗi' });
+    }
+    res.status(200).json({ message: 'Cập nhật thành công' });
+  });
+});
+// delete
+router.delete('/delete-detail/:id', (req, res) => {
+  const id = req.params.id;
+
+  const sql = `CALL DeleteNewsDetail(?)`;
+  connection.query(
+      sql, [id],
+      (err, results) => {
+          if (err) {
+              console.error("Lỗi khi xóa :", err);
+              return res.status(500).json({ error: "Lỗi máy chủ" });
+          }
+          res.json({ message: "  Xóa thành công!" });
+      }
+  );
+});
+// lấy details new theo id 
+router.get('/get-details-new-by-news/:id', (req, res) => {
+  const { id } = req.params;
+
+  const query = 'CALL GetNewsDetailByNewsId(?)';
+  connection.query(query, [id], (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Không thể lấy dữ liệu' });
+    }
+    res.status(200).json(  results[0] );
+  });
+});
+
+// Thêm thông tin news và details
+router.post('/add-news-with-details', upload.single('image_url'), (req, res) => {
+  const { news_title, news_content, author, detail_title, detail_content } = req.body;
+  const image_url = req.file ? req.file.filename  : null; 
+
+  const query = 'CALL AddNewsWithDetails(?, ?, ?, ?, ?, ?)';
+  const params = [news_title, news_content, image_url, author, detail_title, detail_content];
+
+  connection.query(query, params, (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Lỗi khi thêm ' });
+    }
+    res.status(200).json({ message: 'Thêm thành công' });
+  });
+});
+//  cập nhật thông tin news và details
+router.put('/update-news-and-details/:id', upload.single('image_url'), (req, res) => {
+  const { id } = req.params;
+  const { news_title, news_content, author, detail_title, detail_content } = req.body;
+  const image_url = req.file ? req.file.filename  : null; 
+
+  const query = 'CALL UpdateNewsAndDetails(?, ?, ?, ?, ?, ?, ?)';
+  const params = [id, news_title, news_content, image_url, author, detail_title, detail_content];
+
+  connection.query(query, params, (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Lỗi khi sửa ' });
+    }
+    res.status(200).json({ message: 'Sửa thành công' });
+  });
+});
+// Xóa
+router.delete('/delete-news-and-details/:id', (req, res) => {
+  const { id } = req.params;
+
+  const query = 'CALL DeleteNewsAndDetails(?)';
+  const params = [id];
+
+  connection.query(query, params, (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Lỗi khi Xóa ' });
+    }
+    res.status(200).json({ message: 'Xóa thành công' });
+  });
+});
+// Tin tức mới nhất
+router.get('/GetLatestNews', (req, res) => {
+  const query = 'CALL GetLatestThreeNews()';
+  
+  connection.query(query, (err, results) => {
+    if (err) {
+      console.error('Lỗi procedure:', err);
+      return res.status(500).json({ error: 'Không thể lấy dữ liệu' });
+    }
+    res.status(200).json(  results[0] );
+  });
+});
 
 module.exports = router;

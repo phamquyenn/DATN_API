@@ -5,10 +5,17 @@ var cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 var logger = require('morgan');
 const cors = require('cors');
+const { OAuth2Client } = require('google-auth-library');
+
 require("dotenv").config();
+
+
+
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var emailRouter = require('./routes/email');
+
 var users = require('./controller/users');
 var products = require('./controller/products');
 var employees = require('./controller/employees');
@@ -23,8 +30,10 @@ var customers = require('./controller/customer');
 var payment = require('./controller/vnpayment');
 var favorites = require('./controller/favorites');
 var about = require('./controller/aboutus');
-
-
+var inventory = require('./controller/inventory');
+var email = require('./controller/email');
+var contact = require('./controller/contact');
+var paymentcod = require('./controller/paymentcod');
 
 
 
@@ -44,19 +53,6 @@ var app = express();
 // Sử dụng middleware cors
 // app.use(cors());
 app.use(cors(corsOptions));
-// app.use(function (req, res, next) {
-
-//   res.setHeader('Access-Control-Allow-Origin', process.env.REACT_URL);
-
-//   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE,HEAD');
-
-//   res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-
-//   res.setHeader('Access-Control-Allow-Credentials', true);
-
-
-//   next();
-// });
 
 // Sử dụng body-parser để xử lý dữ liệu từ yêu cầu POST
 app.use(bodyParser.json());
@@ -92,6 +88,16 @@ app.use('/vnpayment', payment);
 app.use('/image', uploadImage);
 app.use('/favorites', favorites);
 app.use('/about', about);
+app.use('/inventory', inventory);
+app.use('/contact', contact);
+app.use('/email', email);
+app.use('/paymentcod', paymentcod);
+
+
+
+// app.use('/send', mail);
+app.use('/sendemail', emailRouter);
+
 
 
 

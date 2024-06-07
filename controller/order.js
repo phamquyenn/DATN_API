@@ -4,15 +4,41 @@ var connection = require('./dataconnect');
 const verifyToken = require('./middleware');
 
 router.get('/getall', function(req, res, next) {
-    var sql = "CALL GetAllOrders()";  
+    var sql = "select * from orders";  
     connection.query(sql, function (err, results){
         if(err) {
             console.error('Lỗi truy vấn dữ liệu:', err);
             return res.status(500).jsonp({ error: 'Lỗi máy chủ.' });
         }
-        res.jsonp(results[0]);
+        res.jsonp(results);
     });
 });
+//  Kiếm đơn hàng theo id và ngày đặt
+router.get('/customer-orders/:orderID/:orderDate', (req, res) => {
+  const orderID = req.params.orderID;
+  const orderDate = req.params.orderDate;
+
+  connection.query('CALL GetCustomerOrdersByDate(?, ?)', [orderID, orderDate], (error, results) => {
+      if (error) {
+          res.status(500).json({ error: error.message });
+      } else {
+          res.json(results[0]); 
+      }
+  });
+});
+// lấy trạng thái đơn hàng theo id đơn hàng
+router.get('/status/:orderID', (req, res) => {
+  const orderID = req.params.orderID;
+
+  connection.query('CALL GetOrderStatusByID(?)', [orderID], (error, results) => {
+      if (error) {
+          res.status(500).json({ error: error.message });
+      } else {
+          res.json(results[0]); 
+      }
+  });
+});
+// 
 router.get('/customer/:id', function(req, res, next) {
     const customerId  = req.params.id;
     const sql = "call GetCustomerOrders(?)";
@@ -25,6 +51,7 @@ router.get('/customer/:id', function(req, res, next) {
         res.jsonp(results[0]);
     });
 });
+// 
 router.delete('/delete/:productId', (req, res) => {
   const productId = req.params.productId;
 
@@ -55,6 +82,24 @@ router.patch('/update-status/:orderId', verifyToken, function(req, res, next) {
     res.json({ message: 'Đã cập nhật trạng thái đơn hàng thành công!' });
   });
 });
+// 
+router.post('/update-order-status/:order_id', (req, res) => {
+  const {order_id} = req.params;
+  const {newStatus} = req.body;
+
+  // Gọi thủ tục lưu trữ
+  const sql = `CALL UpdateOrderStatus(?, ?)`;
+  const params = [order_id, newStatus];
+
+  connection.query(sql,params, (err, result) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'lỗi serve' });
+    }
+    res.status(200).json({ message: 'Cập nhật trạng thái đơn hàng thành công' });
+  });
+});
+
 // Hủy đơn hàng
 router.patch('/cancel-order/:orderId', verifyToken, function(req, res, next) {
   const orderId = req.params.orderId;

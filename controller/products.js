@@ -58,7 +58,7 @@ router.get('/getonce/:id', function(req, res, next) {
 router.post('/addproduct', upload.single('product_image'), (req, res) => {
     const {
         product_name, description, brand, price, quantity, volume, fragrance_family,
-        fragrance_notes, gender, category_id, brand_id
+        fragrance_notes, gender, category_id
     } = req.body;
 
     if (!product_name) {
@@ -68,12 +68,12 @@ router.post('/addproduct', upload.single('product_image'), (req, res) => {
     // Lấy dữ liệu ảnh từ req.file
     const product_image = req.file ? req.file.filename : null;
 
-    const sql = `CALL AddProduct(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `CALL AddProductAndOrder(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     connection.query(
         sql, [
             product_name, description, brand, price, quantity, volume, fragrance_family,
-            fragrance_notes, gender, product_image, category_id, brand_id
+            fragrance_notes, gender, product_image, category_id
         ],
         (err, results) => {
             if (err) {
@@ -90,6 +90,23 @@ router.get('/getproductimage/:filename', (req, res) => {
     const fileName = req.params.filename;
     const imagePath = path.join(__dirname, '../uploads/products', fileName);
     res.sendFile(imagePath);
+});
+// Tìm kiếm sản phẩm theo giá
+router.get('/search-products-by-price', (req, res) => {
+
+    const {minPrice, maxPrice, } = req.body;
+    const sql = `CALL SearchProductsByPrice(?, ?)`;
+
+    connection.query(sql,[ minPrice, maxPrice],
+      (err, results) => {
+        if (err) {
+          console.error('Error calling stored procedure:', err);
+          res.status(500).json({ error: 'Internal server error' });
+          return;
+        }
+        res.jsonp(results[0]);
+      }
+    );
 });
 // UPDATE 
 router.put('/updateproduct/:id', upload.single('product_image'), async(req, res) => {
@@ -150,7 +167,10 @@ router.delete('/deleteproduct/:id', (req, res) => {
 
 router.get('/search', (req, res) => {
     const searchTerm = req.query.term;
-  
+    if (!searchTerm || searchTerm.trim() === '') {
+        res.status(400).json({ error: 'Từ khóa tìm kiếm không được trống' });
+        return;
+    }
     const sql = `CALL SearchProductsByNameAndCategory('${searchTerm}')`;
   
     connection.query(sql, (error, results, fields) => {
@@ -160,7 +180,7 @@ router.get('/search', (req, res) => {
         return;
       }
   
-      res.json(results[0]); 
+      res.jsonp(results[0]); 
     });
   });
 // TÌM THỂ LOẠI RA SẢN PHẨM
@@ -234,13 +254,31 @@ router.get('/new', function(req, res, next) {
   });
   // SALE PRODUCT
   router.get('/sale', function(req, resbc, next) {
-    var sqlsale = "CALL Get_sp_bestseller(); "; 
+    var sqlsale = "CALL saleproduct(); "; 
     
     connection.query(sqlsale, function (err, results){
         if(err) throw err;
         resbc.jsonp(results);
     });
   });
+
+//   find Product by brand_id
+
+  router.get('/getproductbybrandId/:brandId', (req, res) => {
+    const brandId = req.params.brandId;
+
+    const sql = `CALL FindProductsByBrand(?)`;
+    connection.query(
+        sql, [brandId],
+        (err, results) => {
+            if (err) {
+                console.error("Lỗi khi lấy thông tin sản phẩm theo thương hiệu:", err);
+                return res.status(500).json({ error: "Lỗi máy chủ" });
+            }
+            res.json(results[0]); 
+        }
+    );
+});
 
 
 module.exports = router;
